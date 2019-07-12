@@ -77,3 +77,41 @@ var TwoVlanNets = NetDevs{
 		Ifa:     "10.1.0.3/31",
 	},
 }
+
+// Ipv6: TwoNets virtual network:
+//
+//	h1:net0port0 <-> r:net0port1
+//	h2:net1port0 <-> r:net1port1
+//port /64 testcase in script
+var TwoIp6Nets = NetDevs{
+	{
+		NetPort: "net0port0",
+		Netns:   "h1",
+		Ifa:     "2001:db8:85a3::370:0001/64",
+		Routes: []Route{
+			//{"3001:db8:85a3::/64", "2001:db8:85a3::370:0002"},
+			{"3001:db8:85a3::370:0002/64", "2001:db8:85a3::370:0002"},
+		},
+		Remotes: []string{"3001:db8:85a3::370:0002"},
+	},
+	{
+		NetPort: "net0port1",
+		Netns:   "r",
+		Ifa:     "2001:db8:85a3::370:0002/64",
+	},
+	{
+		NetPort: "net1port0",
+		Netns:   "h2",
+		Ifa:     "3001:db8:85a3::370:0002/64",
+		Routes: []Route{
+			//{"2001:db8:85a3::/64", "3001:db8:85a3::370:0001"},
+			{"2001:db8:85a3::370:0001/64", "3001:db8:85a3::370:0001"},
+		},
+		Remotes: []string{"2001:db8:85a3::370:0001"},
+	},
+	{
+		NetPort: "net1port1",
+		Netns:   "r",
+		Ifa:     "3001:db8:85a3::370:0001/64",
+	},
+}

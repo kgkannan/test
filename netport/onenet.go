@@ -21,3 +21,21 @@ var OneNet = NetDevs{
 		Remotes: []string{"10.1.0.0"},
 	},
 }
+
+// Ipv6: OneNet virtual network:
+//
+//	h0:net0port0 <-> h1:net0port1
+var OneIp6Net = NetDevs{
+	{
+		NetPort: "net0port0",
+		Netns:   "h0",
+		Ifa:     "2001:db8:85a3::370:0001/64",
+		Remotes: []string{"2001:db8:85a3::370:0002"},
+	},
+	{
+		NetPort: "net0port1",
+		Netns:   "h1",
+		Ifa:     "2001:db8:85a3::370:0002/64",
+		Remotes: []string{"2001:db8:85a3::370:0001"},
+	},
+}
