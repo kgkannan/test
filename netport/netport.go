@@ -41,6 +41,8 @@ func Init(goes string) {
 		}
 		NetPortByPort[port] = netport
 	}
+
+	IsHighVer = IsHigherVer()
 }
 
 type Route struct {
@@ -84,8 +86,47 @@ type NetDev struct {
 	Remotes  []string
 }
 
+//placeholder for 1.3 check
+var IsHighVer bool
+
 // NetDevs describe all of the interfaces in the virtual network under test.
 type NetDevs []NetDev
+
+//set environment info based on platform software
+func IsHigherVer() (higher bool) {
+	pd := *PlatformDriver
+	o, err := exec.Command("/sbin/modinfo", pd).Output()
+	if err == nil && len(o) > 0 {
+		const depends = "depends:"
+		s := string(o)
+		i := strings.Index(s, depends)
+		if i > 0 {
+			s = s[i+len(depends):]
+			dependencies := 0
+			drvdepends := [...]string{
+				"onie",
+				"xeth",
+			}
+			for _, d := range drvdepends {
+				if strings.Index(s, d) >= 0 {
+					dependencies += 1
+				}
+			}
+			if dependencies == 2 {
+				higher = true
+			}
+		}
+	}
+	fmt.Printf("\n IsHigherVer %v \n", higher)
+	return
+}
+
+func IsIPv6(prefix string) (is_ip6 bool) {
+	toip, _, _ := net.ParseCIDR(prefix)
+	is_ip6 = (len(toip) == net.IPv6len && toip.To4() == nil && toip.To16() != nil)
+	fmt.Printf("p:%s ipn:%s is_ip6:%v\n", prefix, toip, is_ip6)
+	return
+}
 
 // netdevs list the interface configurations of the network under test
 func (netdevs NetDevs) Test(t *testing.T, tests ...test.Tester) {
@@ -114,15 +155,19 @@ func (netdevs NetDevs) Test(t *testing.T, tests ...test.Tester) {
 		}
 
 		if nd.DevType == NETPORT_DEVTYPE_BRIDGE {
+			link := "bridge"
+			if isHighVer {
+				link = "xeth-bridge"
+			}
 			if nd.BridgeIfindex != 0 {
 				assert.Program(Goes, "ip", "-n", ns,
 					"link", "add", nd.Ifname,
 					"index", nd.BridgeIfindex,
-					"type", "bridge")
+					"type", link)
 			} else {
 				assert.Program(Goes, "ip", "-n", ns,
 					"link", "add", nd.Ifname,
-					"type", "bridge")
+					"type", link)
 			}
 
 			if false && nd.BridgeMac != "" {
@@ -135,6 +180,10 @@ func (netdevs NetDevs) Test(t *testing.T, tests ...test.Tester) {
 			defer cleanup.Program(Goes, "ip", "-n", ns,
 				"link", "del", nd.Ifname)
 		} else {
+			link := "vlan"
+			if isHighVer {
+				link = "xeth-vlan"
+			}
 			ifname := PortByNetPort[nd.NetPort]
 			if nd.Vlan != 0 {
 				link := ifname
@@ -142,7 +191,7 @@ func (netdevs NetDevs) Test(t *testing.T, tests ...test.Tester) {
 				assert.Program(Goes, "ip", "link", "set", link,
 					"up")
 				assert.Program(Goes, "ip", "link", "add",
-					ifname, "link", link, "type", "vlan",
+					ifname, "link", link, "type", link,
 					"id", nd.Vlan)
 				defer cleanup.Program(Goes, "ip", "link",
 					"del", ifname)
