@@ -185,3 +185,94 @@ var FourVlanNets = NetDevs{
 		},
 	},
 }
+
+// Ipv6: TwoNets virtual network:
+//
+//	h1:net0port0 <-> r:net0port1
+//	h2:net1port0 <-> r:net1port1
+//port /64 testcase in script
+//TBD: match ip4 subnet like addresses; review netport config for 4 net
+var FourIp6Nets = NetDevs{
+	{
+		NetPort: "net0port0",
+		Netns:   "h1",
+		Ifa:     "2001:db8:85a3::370:0001/64",
+		DummyIfs: []DummyIf{
+			{"dummy0", "2222:db8:85a3::370:0001"},
+		},
+		Routes: []Route{
+			{"2002:db8:85a3::370:0001/64", "2001:db8:85a3::370:0002"},
+			{"3333:db8:85a3::370:0001", "2001:db8:85a3::370:0002"},
+		},
+		Remotes: []string{"2002:db8:85a3::370:0001", "3333:db8:85a3::370:0001"},
+	},
+	{
+		NetPort: "net0port1",
+		Netns:   "r",
+		Ifa:     "2001:db8:85a3::370:0002/64",
+		Routes: []Route{
+			{"2222:db8:85a3::370:0001", "2001:db8:85a3::370:0001"},
+		},
+	},
+	{
+		NetPort: "net1port0",
+		Netns:   "h2",
+		Ifa:     "2002:db8:85a3::370:0001/64",
+		DummyIfs: []DummyIf{
+			{"dummy0", "3333:db8:85a3::370:0001"},
+		},
+		Routes: []Route{
+			{"2001:db8:85a3::370:0001/64", "2002:db8:85a3::370:0002"},
+			{"2222:db8:85a3::370:0001", "2002:db8:85a3::370:0002"},
+		},
+		Remotes: []string{"2001:db8:85a3::370:0002", "2222:db8:85a3::370:0001"},
+	},
+	{
+		NetPort: "net1port1",
+		Netns:   "r",
+		Ifa:     "2002:db8:85a3::370:0002/64",
+		Routes: []Route{
+			{"3333:db8:85a3::370:0001", "2002:db8:85a3::370:0001"},
+		},
+	},
+	{
+		NetPort: "net2port0",
+		Netns:   "h1",
+		Ifa:     "3001:db8:85a3::370:0001/64",
+		Routes: []Route{
+			{"3002:db8:85a3::370:0001/64", "3001:db8:85a3::370:0002"},
+			{"2001:db8:85a3::370:0001/64", "3001:db8:85a3::370:0002"},
+			{"3333:db8:85a3::370:0001", "3001:db8:85a3::370:0002"},
+		},
+		Remotes: []string{"3002:db8:85a3::370:0001"},
+	},
+	{
+		NetPort: "net2port1",
+		Netns:   "r",
+		Ifa:     "3001:db8:85a3::370:0002/64",
+		Routes: []Route{
+			{"2222:db8:85a3::370:0001", "3001:db8:85a3::370:0001"},
+			{"2001:db8:85a3::370:0001/64", "3001:db8:85a3::370:0001"},
+		},
+	},
+	{
+		NetPort: "net3port0",
+		Netns:   "h2",
+		Ifa:     "3002:db8:85a3::370:0001/64",
+		Routes: []Route{
+			{"3001:db8:85a3::370:0001/64", "3002:db8:85a3::370:0002"},
+			{"2002:db8:85a3::370:0001/64", "3002:db8:85a3::370:0002"},
+			{"2222:db8:85a3::370:0001", "3002:db8:85a3::370:0002"},
+		},
+		Remotes: []string{"3001:db8:85a3::370:0001"},
+	},
+	{
+		NetPort: "net3port1",
+		Netns:   "r",
+		Ifa:     "3002:db8:85a3::370:0002/64",
+		Routes: []Route{
+			{"3001:db8:85a3::370:0001/64", "3002:db8:85a3::370:0001"},
+			{"3333:db8:85a3::370:0001", "3002:db8:85a3::370:0001"},
+		},
+	},
+}

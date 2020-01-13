@@ -179,14 +179,21 @@ func (netdevs NetDevs) Test(t *testing.T, tests ...test.Tester) {
 			defer cleanup.Program(Goes, "ip", "-n", ns,
 				"link", "set", nd.Ifname, "nomaster")
 		} else if nd.Ifa != "" {
-			assert.ProgramRetry(3, Goes, "ip", "-n", ns,
+			is_ip6 := IsIPv6(nd.Ifa)
+			ip_cmd_args := ""
+			if is_ip6 {
+				ip_cmd_args = "-6"
+			} else {
+				ip_cmd_args = "-4"
+			}
+			assert.ProgramRetry(3, Goes, "ip", "-n", ns, ip_cmd_args,
 				"address", "add", nd.Ifa, "dev", nd.Ifname)
-			defer cleanup.Program(Goes, "ip", "-n", ns,
+			defer cleanup.Program(Goes, "ip", "-n", ns, ip_cmd_args,
 				"address", "del", nd.Ifa, "dev", nd.Ifname)
 			for _, route := range nd.Routes {
 				prefix := route.Prefix
 				gw := route.GW
-				assert.Program(Goes, "ip", "-n", ns,
+				assert.Program(Goes, "ip", "-n", ns, ip_cmd_args,
 					"route", "add", prefix, "via", gw)
 			}
 		}
