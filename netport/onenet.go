@@ -12,13 +12,19 @@ var OneNet = NetDevs{
 		NetPort: "net0port0",
 		Netns:   "h0",
 		Ifa:     "10.1.0.0/31",
-		Remotes: []string{"10.1.0.1"},
+		Ifas: []string{"10.1.0.0/31",
+			"2001:db8:85a3::370:0001/64"},
+		Remotes: []string{"10.1.0.1",
+			"2001:db8:85a3::370:0002"},
 	},
 	{
 		NetPort: "net0port1",
 		Netns:   "h1",
 		Ifa:     "10.1.0.1/31",
-		Remotes: []string{"10.1.0.0"},
+		Ifas: []string{"10.1.0.1/31",
+			"2001:db8:85a3::370:0002/64"},
+		Remotes: []string{"10.1.0.0",
+			"2001:db8:85a3::370:0001"},
 	},
 }
 

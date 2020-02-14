@@ -6,8 +6,10 @@ package test
 
 import (
 	"bytes"
+	"fmt"
 	"go/build"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -215,7 +217,18 @@ func (assert Assert) PingNonFatal(netns, addr string) bool {
 func (assert Assert) Ping(netns, addr string) {
 	const period = 250 * time.Millisecond
 	assert.Helper()
+	//TBDGK: allocate new slice and appen "-6" for ipv6
 	xargs := []string{"ping", "-q", "-c", "1", "-W", "1", addr}
+	family := IpFamily(addr)
+	fmt.Printf("TBDGK IsHighVer %v family %s\n", IsHighVer, family)
+	if family == Ip6 {
+		if !IsHighVer {
+			fmt.Printf("TBDGK Skip %s cases\n", family)
+			return
+		}
+		xargs = []string{"ping", "-6", "-q", "-c", "1", "-W", "1", addr}
+	}
+	fmt.Printf("TBDGK IsHighVer %v family %v xargs %v\n", IsHighVer, family, xargs)
 	if len(netns) > 0 && netns != "default" {
 		xargs = append([]string{"ip", "netns", "exec", netns},
 			xargs...)
@@ -233,4 +246,38 @@ func (assert Assert) Ping(netns, addr string) {
 		Pause.Prompt("Failed ", netns, " ping ", addr)
 	}
 	assert.Fatalf("%s no response", addr)
+}
+
+//placeholder for 1.3 check
+var IsHighVer bool
+
+//TBDGK: use Stringer or Format
+const (
+	Ip4 = "-4"
+	Ip6 = "-6"
+)
+
+func IsIPv6(prefix string) (is_ip6 bool) {
+	var ip net.IP
+
+	//prefix can be route in CIDR (or) neighbor non-CIDR
+	i := strings.IndexByte(prefix, '/')
+	if i < 0 {
+		ip = net.ParseIP(prefix)
+	} else {
+		ip, _, _ = net.ParseCIDR(prefix)
+	}
+	is_ip6 = (len(ip) == net.IPv6len && ip.To4() == nil && ip.To16() != nil)
+	fmt.Printf("p:%s ipn:%s is_ip6:%v\n", prefix, ip, is_ip6)
+	return
+}
+
+func IpFamily(prefix string) (family string) {
+	is_ip6 := IsIPv6(prefix)
+	family = Ip4
+	if is_ip6 {
+		family = Ip6
+	}
+	fmt.Printf("p:%s family:%v\n", prefix, family)
+	return
 }

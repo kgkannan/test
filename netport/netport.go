@@ -10,7 +10,6 @@ package netport
 import (
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -79,24 +78,44 @@ type NetDev struct {
 	Ifname        string
 	Upper         string // only for BRIDGE_PORT
 
-	Ifa      string // no ifa for BRIDGE_PORT
+	// Ifa can be both IPv4, IPv6 address
+	Ifas     []string // no ifa for BRIDGE_PORT
+	Ifa      string   // no ifa for BRIDGE_PORT
 	DummyIfs []DummyIf
 	Routes   []Route
 	Remotes  []string
 }
 
 //placeholder for 1.3 check
-var IsHighVer bool
+//var IsHighVer bool
 
 // NetDevs describe all of the interfaces in the virtual network under test.
 type NetDevs []NetDev
 
+/*
+//TBDGK: use Stringer or Format
+const (
+	ip4 = "-4"
+	ip6 = "-6"
+)
+
 func IsIPv6(prefix string) (is_ip6 bool) {
-	toip, _, _ := net.ParseCIDR(prefix)
-	is_ip6 = (len(toip) == net.IPv6len && toip.To4() == nil && toip.To16() != nil)
-	fmt.Printf("p:%s ipn:%s is_ip6:%v\n", prefix, toip, is_ip6)
+	ip, _, _ := net.ParseCIDR(prefix)
+	is_ip6 = (len(ip) == net.IPv6len && ip.To4() == nil && ip.To16() != nil)
+	fmt.Printf("p:%s ipn:%s is_ip6:%v\n", prefix, ip, is_ip6)
 	return
 }
+
+func IpFamily(prefix string) (family string) {
+	is_ip6 := IsIPv6(prefix)
+	family = ip4
+	if is_ip6 {
+		family = ip6
+	}
+	fmt.Printf("p:%s family:%v\n", prefix, family)
+	return
+}
+*/
 
 // netdevs list the interface configurations of the network under test
 func (netdevs NetDevs) Test(t *testing.T, tests ...test.Tester) {
@@ -126,7 +145,7 @@ func (netdevs NetDevs) Test(t *testing.T, tests ...test.Tester) {
 
 		if nd.DevType == NETPORT_DEVTYPE_BRIDGE {
 			linkType := "bridge"
-			if IsHighVer {
+			if test.IsHighVer {
 				linkType = "xeth-bridge"
 			}
 			if nd.BridgeIfindex != 0 {
@@ -151,7 +170,7 @@ func (netdevs NetDevs) Test(t *testing.T, tests ...test.Tester) {
 				"link", "del", nd.Ifname)
 		} else {
 			linkType := "vlan"
-			if IsHighVer {
+			if test.IsHighVer {
 				linkType = "xeth-vlan"
 			}
 			ifname := PortByNetPort[nd.NetPort]
@@ -179,21 +198,41 @@ func (netdevs NetDevs) Test(t *testing.T, tests ...test.Tester) {
 			defer cleanup.Program(Goes, "ip", "-n", ns,
 				"link", "set", nd.Ifname, "nomaster")
 		} else if nd.Ifa != "" {
-			is_ip6 := IsIPv6(nd.Ifa)
-			ip_cmd_args := ""
-			if is_ip6 {
-				ip_cmd_args = "-6"
+			family := test.IpFamily(nd.Ifa)
+			//TBDGK: placeholder code for []Ifas
+			//retain only for .. nd.Ifas, remove else block
+			//check above
+			if len(nd.Ifas) > 0 {
+				for _, ifa := range nd.Ifas {
+					family := test.IpFamily(ifa)
+					if !test.IsHighVer {
+						if family == test.Ip6 {
+							fmt.Printf("TBDGK Skip %s cases\n", family)
+							continue
+						}
+					}
+					assert.ProgramRetry(3, Goes, "ip", "-n", ns, family,
+						"address", "add", ifa, "dev", nd.Ifname)
+					defer cleanup.Program(Goes, "ip", "-n", ns, family,
+						"address", "del", ifa, "dev", nd.Ifname)
+				}
 			} else {
-				ip_cmd_args = "-4"
+				assert.ProgramRetry(3, Goes, "ip", "-n", ns, family,
+					"address", "add", nd.Ifa, "dev", nd.Ifname)
+				defer cleanup.Program(Goes, "ip", "-n", ns, family,
+					"address", "del", nd.Ifa, "dev", nd.Ifname)
 			}
-			assert.ProgramRetry(3, Goes, "ip", "-n", ns, ip_cmd_args,
-				"address", "add", nd.Ifa, "dev", nd.Ifname)
-			defer cleanup.Program(Goes, "ip", "-n", ns, ip_cmd_args,
-				"address", "del", nd.Ifa, "dev", nd.Ifname)
 			for _, route := range nd.Routes {
 				prefix := route.Prefix
+				family := test.IpFamily(prefix)
+				if !test.IsHighVer {
+					if family == test.Ip6 {
+						fmt.Printf("TBDGK Skip %s cases\n", family)
+						continue
+					}
+				}
 				gw := route.GW
-				assert.Program(Goes, "ip", "-n", ns, ip_cmd_args,
+				assert.Program(Goes, "ip", "-n", ns, family,
 					"route", "add", prefix, "via", gw)
 			}
 		}
