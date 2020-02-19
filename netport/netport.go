@@ -160,14 +160,18 @@ func (netdevs NetDevs) Test(t *testing.T, tests ...test.Tester) {
 			defer cleanup.Program(Goes, "ip", "-n", ns,
 				"link", "set", nd.Ifname, "nomaster")
 		} else if nd.Ifa != "" {
-			assert.ProgramRetry(3, Goes, "ip", "-n", ns,
+			/* ip commands like "ip route" require specific family
+			 * (-6) for routes
+			 */
+			family := test.IpFamily(nd.Ifa)
+			assert.ProgramRetry(3, Goes, "ip", "-n", ns, family,
 				"address", "add", nd.Ifa, "dev", nd.Ifname)
-			defer cleanup.Program(Goes, "ip", "-n", ns,
+			defer cleanup.Program(Goes, "ip", "-n", ns, family,
 				"address", "del", nd.Ifa, "dev", nd.Ifname)
 			for _, route := range nd.Routes {
 				prefix := route.Prefix
 				gw := route.GW
-				assert.Program(Goes, "ip", "-n", ns,
+				assert.Program(Goes, "ip", "-n", ns, family,
 					"route", "add", prefix, "via", gw)
 			}
 		}
