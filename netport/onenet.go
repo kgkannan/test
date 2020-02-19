@@ -21,3 +21,18 @@ var OneNet = NetDevs{
 		Remotes: []string{"10.1.0.0"},
 	},
 }
+
+var OneNetIp6 = NetDevs{
+	{
+		NetPort: "net0port0",
+		Netns:   "h0",
+		Ifa:     "fc01:1:2:3:4:5:6:1/64",
+		Remotes: []string{"fc01:1:2:3:4:5:6:2"},
+	},
+	{
+		NetPort: "net0port1",
+		Netns:   "h1",
+		Ifa:     "fc01:1:2:3:4:5:6:2/64",
+		Remotes: []string{"fc01:1:2:3:4:5:6:1"},
+	},
+}

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"go/build"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -211,10 +212,58 @@ func (assert Assert) PingNonFatal(netns, addr string) bool {
 
 }
 
+//FIXMEIP6: use Stringer or Format?
+const (
+	Ip4 = "-4"
+	Ip6 = "-6"
+)
+
+func IsIPv6(prefix string) (is_ip6 bool) {
+	ip := net.IP{}
+	//prefix can be in CIDR for route (or) non-CIDR for neighbor
+	i := strings.IndexByte(prefix, '/')
+	if i < 0 {
+		ip = net.ParseIP(prefix)
+	} else {
+		ip, _, _ = net.ParseCIDR(prefix)
+	}
+	is_ip6 = (len(ip) == net.IPv6len && ip.To4() == nil && ip.To16() != nil)
+	return
+}
+
+func IpFamily(prefix string) (family string) {
+	family = Ip4
+	is_ip6 := IsIPv6(prefix)
+	if is_ip6 {
+		family = Ip6
+	}
+	//fmt.Printf("p:%s family:%v\n", prefix, family)
+	return
+}
+
+//FIXMEIP6: ping6 seems to require retry for validation
+func (assert Assert) RetryPing6(xargs []string) {
+	const period = 250 * time.Millisecond
+	for c := 1; c <= 2; c++ {
+		for t := 1 * (time.Second / period); t != 0; t-- {
+			if exec.Command(xargs[0], xargs[1:]...).Run() == nil {
+				return
+			}
+			if *VVV {
+				assert.Logf("ping6 retry[%d]/interval[%d] addr:%s\n",
+					c, t, xargs[len(xargs)-1])
+			}
+			time.Sleep(period)
+		}
+	}
+	assert.Fatalf("%s no response", xargs[len(xargs)-1])
+}
+
 // Assert ping response to given address w/in 3sec.
 func (assert Assert) Ping(netns, addr string) {
 	const period = 250 * time.Millisecond
 	assert.Helper()
+	family := IpFamily(addr)
 	xargs := []string{"ping", "-q", "-c", "1", "-W", "1", addr}
 	if len(netns) > 0 && netns != "default" {
 		xargs = append([]string{"ip", "netns", "exec", netns},
@@ -222,6 +271,10 @@ func (assert Assert) Ping(netns, addr string) {
 	}
 	if *VVV {
 		assert.Log(xargs)
+	}
+	if family == "-6" {
+		assert.RetryPing6(xargs)
+		return
 	}
 	for t := 1 * (time.Second / period); t != 0; t-- {
 		if exec.Command(xargs[0], xargs[1:]...).Run() == nil {
